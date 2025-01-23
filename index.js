@@ -42,6 +42,7 @@ async function run() {
 
     const userCollection = client.db("PropertyPulse").collection("users");
     const apartmentsCollection = client.db("PropertyPulse").collection("apartments");
+    const agreementsCollection = client.db("PropertyPulse").collection("agreements");
 
 
 
@@ -119,7 +120,35 @@ async function run() {
     });
 
 
-    
+    app.post('/agreements', async (req, res) => {
+  const agreementData = req.body;
+
+  try {
+    // Check if the user already has an agreement for this apartment
+    const existingAgreement = await agreementsCollection.findOne({
+      userId: agreementData.userId,
+      apartmentId: agreementData.apartmentId,
+    });
+
+    if (existingAgreement) {
+      return res.status(400).send({
+        message: "You already have an agreement for this apartment.",
+      });
+    }
+
+    // If no existing agreement, insert the new agreement
+    const result = await agreementsCollection.insertOne(agreementData);
+    res.send({ insertedId: result.insertedId });
+  } catch (error) {
+    console.error("Error inserting agreement:", error);
+    res.status(500).send({ message: "Failed to insert agreement" });
+  }
+});
+
+
+
+
+
 
     
     
