@@ -41,6 +41,10 @@ async function run() {
     console.log("Successfully connected to MongoDB!");
 
     const userCollection = client.db("PropertyPulse").collection("users");
+    const apartmentsCollection = client.db("PropertyPulse").collection("apartments");
+
+
+
 
     // JWT-related API
     app.post('/jwt', async (req, res) => {
@@ -78,6 +82,47 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
+
+
+    // // apartments related apis
+    // app.get('/apartment', async (req, res) => {
+    //   const result = await apartmentsCollection.find().toArray();
+    //   res.send(result);
+    // });
+
+    // app.get('/apartment/:id', async (req, res) => {
+    //   const id = req.params.id;
+    //   const query = { _id: new ObjectId(id) }
+    //   const result = await apartmentsCollection.findOne(query);
+    //   res.send(result);
+    // })
+
+    // 
+
+    app.get('/apartment', async (req, res) => {
+      const { page = 1, limit = 6, min, max } = req.query;
+      const skip = (page - 1) * limit;
+    
+      const query = {};
+      if (min && max) {
+        query.rent = { $gte: parseInt(min), $lte: parseInt(max) };
+      }
+    
+      const total = await apartmentsCollection.countDocuments(query);
+      const apartments = await apartmentsCollection
+        .find(query)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .toArray();
+    
+      res.send({ apartments, total });
+    });
+
+
+    
+
+    
+    
 
 
     app.get('/', (req, res) => {
