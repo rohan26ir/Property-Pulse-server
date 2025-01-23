@@ -8,10 +8,11 @@ const app = express();
 const cookieParser = require('cookie-parser');
 
 const corsOptions = {
-  origin: ['http://localhost:5173',
-          'https://content-hub-24.web.app',
-          'https://content-hub-24.firebaseapp.com',
-  ], 
+  origin: [
+    'http://localhost:5173',
+    'https://propertys-pulse.web.app/',
+    'https://propertys-pulse.firebaseapp.com/',
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'DELETE', 'PUT'],
   optionalSuccessStatus: 200,
@@ -32,28 +33,62 @@ const client = new MongoClient(uri, {
   },
 });
 
-
+// Function to connect to MongoDB and set up routes
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
+    // Connect the client to the server (persistent connection)
     await client.connect();
+    console.log("Successfully connected to MongoDB!");
+
+    const userCollection = client.db("PropertyPulse").collection("users");
+
+    // JWT-related API
+    app.post('/jwt', async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '3h' });
+      res.send({ token });
+    });
+
+    // Verify Token Middleware
+    const verifyToken = (req, res, next) => {
+      const token = req.cookies?.token;
+      if (!token) return res.status(401).send({ message: 'Unauthorized access' });
+
+      jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: 'Unauthorized access' });
+        }
+        req.user = decoded;
+        next();
+      });
+    };
+
+    // Users API
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+
+      // Check if the user already exists
+      const query = { email: user.email };
+      const existingUser = await userCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: 'User already exists', insertedId: null });
+      }
+
+      // Insert the new user into the database
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
 
 
-
-
-    
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+    app.get('/', (req, res) => {
+      res.send('PropertyPulse is running....');
+    });
+  } catch (err) {
+    console.error("Error in run():", err);
   }
 }
+
 run().catch(console.dir);
 
-app.get('/', (req, res) => {
-  res.send('PropertyPulse is running....');
-});
-
+// Start the server
 app.listen(port, () => console.log(`PropertyPulse running on port ${port}`));
