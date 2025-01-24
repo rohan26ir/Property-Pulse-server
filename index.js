@@ -50,23 +50,27 @@ async function run() {
     // JWT-related API
     app.post('/jwt', async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '3h' });
+      const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '5h' });
       res.send({ token });
-    });
+    })
+    
 
     // Verify Token Middleware
     const verifyToken = (req, res, next) => {
-      const token = req.cookies?.token;
-      if (!token) return res.status(401).send({ message: 'Unauthorized access' });
-
+      // console.log('inside verify token', req.headers.authorization);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: 'unauthorized access' });
+      }
+      const token = req.headers.authorization.split(' ')[1];
       jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
         if (err) {
-          return res.status(401).send({ message: 'Unauthorized access' });
+          return res.status(401).send({ message: 'unauthorized access' })
         }
-        req.user = decoded;
+        req.decoded = decoded;
         next();
-      });
-    };
+      })
+    }
+    
 
     // Users API
     app.post('/users', async (req, res) => {
@@ -144,6 +148,32 @@ async function run() {
     res.status(500).send({ message: "Failed to insert agreement" });
   }
 });
+
+// Get agreements by userId
+app.get('/agreements', verifyToken, async (req, res) => {
+  const userId = req.user?._id; // Extract user ID from decoded token
+  if (!userId) {
+    return res.status(400).send({ message: 'Invalid token - User ID missing' });
+  }
+
+  try {
+    const userAgreements = await agreementsCollection.find({ userId }).toArray();
+    res.send(userAgreements);
+  } catch (error) {
+    console.error('Error fetching agreements:', error);
+    res.status(500).send({ message: 'Failed to fetch agreements' });
+  }
+});
+
+app.delete('/agreements/:id', async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) }
+  const result = await agreementsCollection.deleteOne(query);
+  res.send(result);
+});
+
+
+
 
 
 
