@@ -15,7 +15,7 @@ const corsOptions = {
     'https://propertys-pulse.firebaseapp.com/',
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'DELETE', 'PUT'],
+  methods: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
   optionalSuccessStatus: 200,
 };
 
@@ -102,7 +102,7 @@ async function run() {
       }
     });
 
-    // Get user by email
+    // Get admin role of a user
     app.get('/users/admin/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
 
@@ -115,9 +115,24 @@ async function run() {
       if (user) {
         admin = user?.role === 'admin';
       }
-      res.send({ admin });
+      res.send({admin});
     })
 
+    // Update user role to admin
+    app.patch('/users/admin/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      try {
+        const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { role: 'admin' } }
+        );
+        res.send(result);
+      } catch (error) {
+        console.error('Error updating user role:', error);
+        res.status(500).send({ message: 'Failed to update role' });
+      }
+    });
+    
 
 
 
