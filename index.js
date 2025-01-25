@@ -91,6 +91,24 @@ async function run() {
       }
     });
 
+    // Get all users
+    app.get('/users', verifyToken, async (req, res) => {
+      try {
+        const users = await userCollection.find().toArray();
+        res.send(users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).send({ message: 'Failed to fetch users' });
+      }
+    });
+
+
+
+
+
+
+
+
     // Apartments API (with pagination and filters)
     app.get('/apartment', async (req, res) => {
       const { page = 1, limit = 6, min, max } = req.query;
