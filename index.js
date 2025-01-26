@@ -132,6 +132,30 @@ async function run() {
         res.status(500).send({ message: 'Failed to update role' });
       }
     });
+
+
+    // Update user role to member (for admin)
+  app.patch('/users/member/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+      const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { role: 'member' } }
+      );
+      if (result.modifiedCount > 0) {
+          return res.status(200).json({ message: 'User role updated to member successfully' });
+      } else {
+          return res.status(404).json({ message: 'User not found or role already updated' });
+      }
+  } catch (error) {
+      console.error('Error updating user role:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+    
+    
+    
     
 
 
