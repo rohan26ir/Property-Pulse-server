@@ -134,7 +134,7 @@ async function run() {
     });
 
 
-    // Update user role to member (for admin)
+    // Update user role to member
   app.patch('/users/member/:id', async (req, res) => {
   const { id } = req.params;
   try {
