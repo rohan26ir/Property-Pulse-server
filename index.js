@@ -135,23 +135,27 @@ async function run() {
 
 
     // Update user role to member
-  app.patch('/users/member/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-      const result = await userCollection.updateOne(
+    app.patch('/users/member/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      try {
+        const result = await userCollection.updateOne(
           { _id: new ObjectId(id) },
           { $set: { role: 'member' } }
-      );
-      if (result.modifiedCount > 0) {
-          return res.status(200).json({ message: 'User role updated to member successfully' });
-      } else {
-          return res.status(404).json({ message: 'User not found or role already updated' });
+        );
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error('Error updating user role to member:', error);
+        res.status(500).send({ message: 'Failed to update role to member' });
       }
-  } catch (error) {
-      console.error('Error updating user role:', error);
-      return res.status(500).json({ message: 'Internal server error' });
-  }
-});
+    });
+
+    app.get('/users/member/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const user = await userCollection.findOne({ email });
+      res.send({ member: user?.role === 'member' });
+    });
+    
+    
 
     
     
