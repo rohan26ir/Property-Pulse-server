@@ -59,6 +59,7 @@ async function run() {
     const apartmentsCollection = client.db('PropertyPulse').collection('apartments');
     const agreementsCollection = client.db('PropertyPulse').collection('agreements');
     const announceCollection = client.db('PropertyPulse').collection('announcements');
+    const couponCollection = client.db('PropertyPulse').collection('coupons');
 
     // JWT API
     app.post('/jwt', async (req, res) => {
