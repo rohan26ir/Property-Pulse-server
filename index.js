@@ -179,6 +179,30 @@ async function run() {
       }
     });
 
+    // Get apartment by ID
+    app.post('/agreements', async (req, res) => {
+      const agreementData = req.body;
+      try {
+        // Check if the user already has an agreement for this apartment
+        const existingAgreement = await agreementsCollection.findOne({
+          userId: agreementData.userId,
+          apartmentId: agreementData.apartmentId,
+        });
+        if (existingAgreement) {
+          return res.status(400).send({
+            message: "You already have an agreement for this apartment.",
+          });
+        }
+        // If no existing agreement, insert the new agreement
+        const result = await agreementsCollection.insertOne(agreementData);
+        res.send({ insertedId: result.insertedId });
+      } catch (error) {
+        console.error("Error inserting agreement:", error);
+        res.status(500).send({ message: "Failed to insert agreement" });
+      }
+    });
+    
+
 
     // Announcements API
     app.post('/announcements', async (req, res) => {
@@ -221,7 +245,24 @@ async function run() {
         res.status(500).send({ message: 'Failed to fetch agreements.' });
       }
     });
-    
+
+    // Delete an agreement
+    app.delete('/agreements/:id', verifyToken, async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await agreementsCollection.deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount > 0) {
+          res.send({ message: 'Agreement deleted successfully.' });
+        } else {
+          res.status(404).send({ message: 'Agreement not found.' });
+        }
+      } catch (error) {
+        console.error('Error deleting agreement:', error);
+        res.status(500).send({ message: 'Failed to delete agreement.' });
+      }
+    });
+
+
 
 
 
