@@ -74,20 +74,28 @@ async function run() {
 
     // Users API
     app.post('/users', async (req, res) => {
-      const user = { ...req.body, role: req.body.role || 'member' }; // Assign default role 'member'
+      const user = req.body;
+      const { email, name, photoURL } = user;
+    
+      if (!email || !name || !photoURL) {
+        return res.status(400).send({ message: 'Missing required fields' });
+      }
+    
       try {
-        const query = { email: user.email };
-        const existingUser = await userCollection.findOne(query);
+        const existingUser = await userCollection.findOne({ email });
         if (existingUser) {
-          return res.send({ message: 'User already exists', insertedId: null });
+          return res.status(409).send({ message: 'User already exists' });
         }
+    
         const result = await userCollection.insertOne(user);
-        res.send(result);
+        res.send({ success: true, insertedId: result.insertedId });
       } catch (error) {
-        console.error('Error inserting user:', error);
-        res.status(500).send({ message: 'Failed to insert user' });
+        console.error('Error saving user to database:', error);
+        res.status(500).send({ message: 'Failed to save user' });
       }
     });
+    
+    
 
     app.get('/users', verifyToken, async (req, res) => {
       try {
