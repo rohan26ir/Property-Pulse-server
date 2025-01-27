@@ -211,6 +211,19 @@ async function run() {
     });
 
 
+    // Agreements API
+    app.get('/agreements', async (req, res) => {
+      try {
+        const agreements = await agreementsCollection.find().toArray();
+        res.send(agreements);
+      } catch (error) {
+        console.error('Error fetching agreements:', error);
+        res.status(500).send({ message: 'Failed to fetch agreements.' });
+      }
+    });
+    
+
+
 
 
 
