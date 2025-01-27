@@ -76,17 +76,17 @@ async function run() {
     app.post('/users', async (req, res) => {
       const user = req.body;
       const { email, name, photoURL } = user;
-    
+
       if (!email || !name || !photoURL) {
         return res.status(400).send({ message: 'Missing required fields' });
       }
-    
+
       try {
         const existingUser = await userCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).send({ message: 'User already exists' });
         }
-    
+
         const result = await userCollection.insertOne(user);
         res.send({ success: true, insertedId: result.insertedId });
       } catch (error) {
@@ -94,8 +94,8 @@ async function run() {
         res.status(500).send({ message: 'Failed to save user' });
       }
     });
-    
-    
+
+
 
     app.get('/users', verifyToken, async (req, res) => {
       try {
@@ -178,6 +178,37 @@ async function run() {
         res.status(500).send({ message: 'Failed to fetch apartments' });
       }
     });
+
+
+    // Announcements API
+    app.post('/announcements', async (req, res) => {
+      const { title, description } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).send({ message: "Title and description are required." });
+      }
+
+      try {
+        const newAnnouncement = { title, description, createdAt: new Date() };
+        const result = await announceCollection.insertOne(newAnnouncement);
+        res.send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        console.error("Error creating announcement:", error);
+        res.status(500).send({ message: "Failed to create announcement." });
+      }
+    });
+
+
+
+
+
+
+
+
+
+
+
+
 
     app.get('/', (req, res) => {
       res.send('PropertyPulse is running...');
