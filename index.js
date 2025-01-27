@@ -199,6 +199,18 @@ async function run() {
     });
 
 
+    // Get all announcements
+    app.get('/announcements', async (req, res) => {
+      try {
+        const announcements = await announceCollection.find().sort({ createdAt: -1 }).toArray();
+        res.send(announcements);
+      } catch (error) {
+        console.error("Error fetching announcements:", error);
+        res.status(500).send({ message: "Failed to fetch announcements." });
+      }
+    });
+
+
 
 
 
