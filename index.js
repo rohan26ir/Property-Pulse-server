@@ -4,7 +4,6 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -175,6 +174,8 @@ app.get('/users', verifyToken, async (req, res) => {
       }
     });
 
+
+
     // Get apartment by ID
     app.post('/agreements', async (req, res) => {
       const agreementData = req.body;
@@ -319,57 +320,40 @@ app.get('/users', verifyToken, async (req, res) => {
       }
     });
 
-
-
-
-
-
-
-    // payment intent
-    app.post('/payment-intent', async (req, res) => {
-      const { price } = req.body;
-      const amount = parseInt(price * 100);
-      console.log(amount, 'amount inside the intent')
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        payment_method_types: ['card']
-      });
-
-      res.send({
-        clientSecret: paymentIntent.client_secret
-      })
-    });
-
-    // get all payments
-    app.get('/payments/:email', verifyToken, async (req, res) => {
-      const query = { email: req.params.email }
-      if (req.params.email !== req.decoded.email) {
-        return res.status(403).send({ message: 'forbidden access' });
-      }
-      const result = await paymentCollection.find(query).toArray();
-      res.send(result);
-    })
-
-    // add payment
-    app.post('/payments', async (req, res) => {
-      const payment = req.body;
-      const paymentResult = await paymentCollection.insertOne(payment);
-
-      //  carefully delete each item from the cart
-      console.log('payment info', payment);
-      const query = {
-        _id: {
-          $in: payment.cartIds.map(id => new ObjectId(id))
+    app.patch('/coupons/:id', async (req, res) => {
+      const { id } = req.params; // Get the coupon ID from the request params
+    
+      try {
+        // Fetch the current coupon to check its current 'available' status
+        const coupon = await couponCollection.findOne({ _id: new ObjectId(id) });
+    
+        if (!coupon) {
+          return res.status(404).json({ message: 'Coupon not found.' });
         }
-      };
-
-      const deleteResult = await cartCollection.deleteMany(query);
-
-      res.send({ paymentResult, deleteResult });
-    })
-
+    
+        // Toggle the 'available' status
+        const newStatus = !coupon.available;
+    
+        // Update the coupon in the database
+        const result = await couponCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { available: newStatus } }
+        );
+    
+        if (result.modifiedCount === 1) {
+          return res.status(200).json({
+            message: `Coupon ${newStatus ? 'activated' : 'deactivated'} successfully.`,
+            available: newStatus,
+          });
+        }
+    
+        return res.status(500).json({ message: 'Failed to update coupon status.' });
+      } catch (error) {
+        console.error('Error updating coupon availability:', error);
+        return res.status(500).json({ message: 'An error occurred while updating the coupon.' });
+      }
+    });
+    
 
 
 
