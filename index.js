@@ -287,7 +287,22 @@ app.get('/users', verifyToken, async (req, res) => {
       }
     });
     
-
+    app.get('/agreementsAccep', verifyToken, async (req, res) => {
+      try {
+        // Fetch only accepted agreements
+        const agreements = await agreementsCollection
+          .find({ status: 'accepted' })
+          .toArray();
+    
+        res.send({ apartments: agreements }); // Return the accepted agreements to the frontend
+      } catch (error) {
+        console.error('Error fetching agreements:', error);
+        res.status(500).send({ message: 'Failed to fetch agreements.' });
+      }
+    });
+    
+    
+    
 
     
     // Add a new coupon
@@ -299,7 +314,7 @@ app.get('/users', verifyToken, async (req, res) => {
       }
 
       try {
-        const newCoupon = { couponCode, discount, description, createdAt: new Date() };
+        const newCoupon = { couponCode, discount, description,available: true,  createdAt: new Date() };
         const result = await couponCollection.insertOne(newCoupon);
         res.send({ success: true, insertedId: result.insertedId });
       } catch (error) {
