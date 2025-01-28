@@ -76,42 +76,49 @@ async function run() {
     // Users API
     app.post('/users', async (req, res) => {
       const user = req.body;
-      const { email, name, photoURL } = user;
-
-      if (!email || !name || !photoURL) {
-        return res.status(400).send({ message: 'Missing required fields' });
+      const query = { email: user.email }
+      const existingUser = await userCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertedId: null })
       }
-
-      try {
-        const existingUser = await userCollection.findOne({ email });
-        if (existingUser) {
-          return res.status(409).send({ message: 'User already exists' });
-        }
-
-        const result = await userCollection.insertOne(user);
-        res.send({ success: true, insertedId: result.insertedId });
-      } catch (error) {
-        console.error('Error saving user to database:', error);
-        res.status(500).send({ message: 'Failed to save user' });
-      }
+      const result = await userCollection.insertOne(user);
+      res.send(result);
     });
+    
 
 
 
-    app.get('/users', verifyToken, async (req, res) => {
-      try {
-        const users = await userCollection.find().toArray();
-        res.send(users);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).send({ message: 'Failed to fetch users' });
-      }
-    });
+//     app.get("/users", async (req, res) => {
+//   const { email } = req.query;
+  
+//   try {
+//     const user = await userCollection.findOne({ email });
+//     if (user) {
+//       res.json({ exists: true });
+//     } else {
+//       res.json({ exists: false });
+//     }
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
+// Route to get all users
+// Get all users
+app.get('/users', verifyToken, async (req, res) => {
+  try {
+    const users = await userCollection.find().toArray();
+    res.send(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).send({ message: 'Failed to fetch users' });
+  }
+});
+
 
     // Get admin role of a user
     app.get('/users/admin/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
-
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'Forbidden access' });
       }
@@ -120,20 +127,7 @@ async function run() {
       res.send({ admin: user?.role === 'admin' });
     });
 
-    // Update user role to admin
-    app.patch('/users/admin/:id', verifyToken, async (req, res) => {
-      const id = req.params.id;
-      try {
-        const result = await userCollection.updateOne(
-          { _id: new ObjectId(id) },
-          { $set: { role: 'admin' } }
-        );
-        res.send(result);
-      } catch (error) {
-        console.error('Error updating user role:', error);
-        res.status(500).send({ message: 'Failed to update role' });
-      }
-    });
+
 
     // Update user role to member
     app.patch('/users/member/:id', verifyToken, async (req, res) => {
@@ -202,7 +196,7 @@ async function run() {
         res.status(500).send({ message: "Failed to insert agreement" });
       }
     });
-    
+
 
 
     // Announcements API
@@ -247,9 +241,27 @@ async function run() {
       }
     });
 
+    // Update agreement status to accepted
+    app.patch('/agreements/status/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      try {
+        const result = await agreementsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: 'accepted' } }
+        );
+        if (result.modifiedCount > 0) {
+          res.send({ message: 'Agreement status updated to accepted.' });
+        } else {
+          res.status(404).send({ message: 'Agreement not found.' });
+        }
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to update agreement status.' });
+      }
+    });
+
     // Delete an agreement
     app.delete('/agreements/:id', verifyToken, async (req, res) => {
-      const { id } = req.params;
+      const id = req.params.id;
       try {
         const result = await agreementsCollection.deleteOne({ _id: new ObjectId(id) });
         if (result.deletedCount > 0) {
@@ -258,20 +270,53 @@ async function run() {
           res.status(404).send({ message: 'Agreement not found.' });
         }
       } catch (error) {
-        console.error('Error deleting agreement:', error);
         res.status(500).send({ message: 'Failed to delete agreement.' });
       }
     });
 
+   // Get agreements by user ID
+    app.get('/agreements/:userId', async (req, res) => {
+      const { userId } = req.params;
+      try {
+        const userAgreements = await agreementsCollection.find({ userId }).toArray();
+        res.send(userAgreements);
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to fetch user agreements.' });
+      }
+    });
+    
 
 
+    
+    // Add a new coupon
+    app.post('/coupons', async (req, res) => {
+      const { couponCode, discount, description } = req.body;
+      
+      if (!couponCode || discount == null || !description) {
+        return res.status(400).send({ message: 'All fields are required.' });
+      }
 
+      try {
+        const newCoupon = { couponCode, discount, description, createdAt: new Date() };
+        const result = await couponCollection.insertOne(newCoupon);
+        res.send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        console.error('Error adding coupon:', error);
+        res.status(500).send({ message: 'Failed to add coupon.' });
+      }
+    });
 
-
-
-
-
-
+    
+    // Get all coupons
+    app.get('/coupons', async (req, res) => {
+      try {
+        const coupons = await couponCollection.find().toArray();
+        res.send(coupons);
+      } catch (error) {
+        console.error('Error fetching coupons:', error);
+        res.status(500).send({ message: 'Failed to fetch coupons.' });
+      }
+    });
 
 
 
