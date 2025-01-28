@@ -1,7 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 
@@ -11,8 +11,8 @@ const port = process.env.PORT || 8000;
 const corsOptions = {
   origin: [
     'http://localhost:5173',
-    'https://propertys-pulse.web.app/',
-    'https://propertys-pulse.firebaseapp.com/',
+    'https://propertys-pulse.web.app',
+    'https://propertys-pulse.firebaseapp.com',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
@@ -52,8 +52,8 @@ const verifyToken = (req, res, next) => {
 // Function to connect to MongoDB and set up routes
 async function run() {
   try {
-    await client.connect();
-    console.log('Successfully connected to MongoDB!');
+    // await client.connect();
+    // console.log('Successfully connected to MongoDB!');
 
     const userCollection = client.db('PropertyPulse').collection('users');
     const apartmentsCollection = client.db('PropertyPulse').collection('apartments');
