@@ -68,6 +68,6 @@ Deployed on Vercel.
 
 
 ## Repository Links  
-- [Server Repository](https://github.com/Programming-Hero-Web-Course4/b10a12-server-side-rohan26ir.git)
 
-- [Client Repository](https://github.com/Programming-Hero-Web-Course4/b10a12-client-side-rohan26ir.git)
+
+- [Client Repository](https://github.com/rohan26ir/Property-Pulse)
