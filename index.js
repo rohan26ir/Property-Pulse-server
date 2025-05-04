@@ -4,6 +4,8 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -46,6 +48,7 @@ async function run() {
     const agreementsCollection = client.db('PropertyPulse').collection('agreements');
     const announceCollection = client.db('PropertyPulse').collection('announcements');
     const couponCollection = client.db('PropertyPulse').collection('coupons');
+    const paymentCollection = client.db('PropertyPulse').collection('payments');
 
     // jwt related api
     app.post('/jwt', async (req, res) => {
@@ -241,15 +244,30 @@ app.patch('/users/role/:id', async (req, res) => {
 
 
     // Agreements API
+    // app.get('/agreements', async (req, res) => {
+    //   try {
+    //     const agreements = await agreementsCollection.find().toArray();
+    //     res.send(agreements);
+    //   } catch (error) {
+    //     console.error('Error fetching agreements:', error);
+    //     res.status(500).send({ message: 'Failed to fetch agreements.' });
+    //   }
+    // });
     app.get('/agreements', async (req, res) => {
       try {
-        const agreements = await agreementsCollection.find().toArray();
-        res.send(agreements);
+          const sortOrder = req.query.sort === 'asc' ? 1 : req.query.sort === 'desc' ? -1 : 0;
+          const agreements = await agreementsCollection
+              .find()
+              .sort(sortOrder ? { price: sortOrder } : {})
+              .toArray();
+  
+          res.send(agreements);
       } catch (error) {
-        console.error('Error fetching agreements:', error);
-        res.status(500).send({ message: 'Failed to fetch agreements.' });
+          console.error('Error fetching agreements:', error);
+          res.status(500).send({ message: 'Failed to fetch agreements.' });
       }
-    });
+  });
+  
 
     // Update agreement status to "accepted" and role to "member"
     app.patch('/agreements/status/:id', async (req, res) => {
@@ -391,6 +409,93 @@ app.patch('/users/role/:id', async (req, res) => {
       } catch (error) {
         console.error('Error updating coupon availability:', error);
         return res.status(500).json({ message: 'An error occurred while updating the coupon.' });
+      }
+    });
+
+
+    // payment intent for strip
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, 'amount inside the intent')
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    });
+    
+
+
+    app.get('/payments/:email', verifyToken, async (req, res) => {
+      const query = { email: req.params.email }
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: 'forbidden access' });
+      }
+      const result = await paymentCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    app.post('/payments', verifyToken, async (req, res) => {
+      const payment = req.body;
+    
+      // Validate required fields
+      const requiredFields = ['email', 'price', 'transactionId', 'status', 'apartmentNos', 'date'];
+      const missingFields = requiredFields.filter(field => !payment[field] && payment[field] !== '');
+      if (missingFields.length > 0) {
+        return res.status(400).send({ message: `Missing required fields: ${missingFields.join(', ')}` });
+      }
+    
+      // Ensure apartmentNos is an array
+      if (!Array.isArray(payment.apartmentNos)) {
+        return res.status(400).send({ message: 'apartmentNos must be an array' });
+      }
+    
+      // Verify the requesting user matches the payment email
+      if (payment.email !== req.decoded.email) {
+        return res.status(403).send({ message: 'Forbidden access' });
+      }
+    
+      try {
+        // Insert payment into paymentCollection
+        const paymentResult = await paymentCollection.insertOne({
+          ...payment,
+          date: new Date(payment.date), // Ensure date is stored as a Date object
+        });
+    
+        // Update agreements to mark as paid
+        if (payment.apartmentNos.length > 0) {
+          await agreementsCollection.updateMany(
+            { apartmentNo: { $in: payment.apartmentNos }, userEmail: payment.email },
+            { $set: { status: 'paid' } }
+          );
+        }
+    
+        // Optional: Update apartmentsCollection to mark apartments as rented
+        if (payment.apartmentNos.length > 0) {
+          await apartmentsCollection.updateMany(
+            { apartmentNo: { $in: payment.apartmentNos } },
+            { $set: { status: 'rented' } }
+          );
+        }
+    
+        // // Optional: Create an announcement
+        // const announcement = {
+        //   title: `Payment Completed for ${payment.apartmentNos.length} Apartment(s)`,
+        //   description: `User ${payment.email} has successfully paid $${payment.price.toFixed(2)} for apartments: ${payment.apartmentNos.join(', ')}.`,
+        //   createdAt: new Date(),
+        // };
+        // await announceCollection.insertOne(announcement);
+    
+        res.send({ status: 'success', paymentResult });
+      } catch (error) {
+        console.error('Error processing payment:', error);
+        res.status(500).send({ message: 'Failed to process payment' });
       }
     });
 
